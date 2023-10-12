@@ -655,7 +655,7 @@ module Spidr
     # @return [Boolean]
     #   Specifies whether the URL was enqueued, or ignored.
     #
-    def enqueue(url,level=0)
+    def enqueue(url,level=0,prioritize=false)
       url = sanitize_url(url)
 
       if (!queued?(url) && visit?(url))
@@ -683,7 +683,11 @@ module Spidr
         rescue Actions::Action
         end
 
-        @queue << url
+        if prioritize
+          @queue.unshift(url)
+        else
+          @queue << url
+        end
         @levels[url] = level
         return true
       end
