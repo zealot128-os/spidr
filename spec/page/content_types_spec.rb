@@ -169,4 +169,8 @@ describe Page do
       include_examples "Content-Type method", :ico?, 'image/vnd.microsoft.icon'
     end
   end
+
+  describe "#gzip?" do
+    include_examples "Content-Type method", :gzip?, 'application/gzip'
+  end
 end

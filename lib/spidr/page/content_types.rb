@@ -274,5 +274,13 @@ module Spidr
     end
 
     alias icon? ico?
+    # Determines if the page is a Gzip archive.
+    #
+    # @return [Boolean]
+    #   Specifies whether the page is a Gzip archive.
+    #
+    def gzip?
+      is_content_type?('application/gzip')
+    end
   end
 end
