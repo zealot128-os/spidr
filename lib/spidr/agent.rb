@@ -6,7 +6,7 @@ require_relative 'agent/filters'
 require_relative 'agent/events'
 require_relative 'agent/actions'
 require_relative 'agent/robots'
-require_relative 'spidr/agent/sitemap'
+require_relative 'agent/sitemap'
 require_relative 'page'
 require_relative 'session_cache'
 require_relative 'cookie_jar'
@@ -248,6 +248,7 @@ module Spidr
                    ignore_urls:  nil,
                    exts:         nil,
                    ignore_exts:  nil,
+                   sitemap:      false,
                    # robots keyword arguments
                    robots:       Spidr.robots?)
       @host_header  = host_header
@@ -306,7 +307,7 @@ module Spidr
 
       initialize_robots if robots
 
-      if options.fetch(:sitemap,false)
+      if sitemap
         initialize_sitemap
       end
 
