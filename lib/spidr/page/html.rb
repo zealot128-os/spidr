@@ -266,8 +266,11 @@ module Spidr
     #
     def to_absolute(link)
       link    = link.to_s
+      # Use base_href if available, otherwise use page URL
+      base_url = base_href || url
+
       new_url = begin
-                  url.merge(link)
+                  base_url.merge(link)
                 rescue URI::Error
                   return
                 end
@@ -285,6 +288,44 @@ module Spidr
       end
 
       return new_url
+    end
+
+    #
+    # Returns the base href URL from the page if present.
+    #
+    # @return [URI::HTTP, nil]
+    #   The base URL from the first <base href="..."> element, or nil if not present.
+    #
+    # @since 0.8.0
+    #
+    def base_href
+      return @base_href if defined?(@base_href)
+
+      @base_href = if html? && doc
+        # Find first base element with href attribute (HTML spec says only first counts)
+        base_elem = doc.at('//head/base[@href]')
+        if base_elem
+          href_value = base_elem['href'].to_s.strip
+
+          unless href_value.empty?
+            begin
+              # Parse the base href
+              parsed = URI.parse(href_value)
+
+              # Ignore data: and javascript: schemes per HTML spec
+              if parsed.scheme && ['data', 'javascript'].include?(parsed.scheme.downcase)
+                nil
+              else
+                # If base href is relative, resolve it against page URL
+                url.merge(href_value)
+              end
+            rescue URI::Error
+              # Invalid URL, ignore the base element
+              nil
+            end
+          end
+        end
+      end
     end
   end
 end

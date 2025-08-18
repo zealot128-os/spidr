@@ -650,6 +650,87 @@ describe Page do
     end
   end
 
+  describe "#base_href" do
+    context "when there is a base element with href" do
+      let(:base_url) { "https://example.com/base/" }
+      let(:body) { %{<html><head><base href="#{base_url}" /></head><body><p>test</p></body></html>} }
+
+      it "should return the base URL" do
+        expect(subject.base_href).to be == URI(base_url)
+      end
+    end
+
+    context "when there are multiple base elements" do
+      let(:first_base) { "https://example.com/first/" }
+      let(:second_base) { "https://example.com/second/" }
+      let(:body) { %{<html><head><base href="#{first_base}" /><base href="#{second_base}" /></head><body><p>test</p></body></html>} }
+
+      it "should return only the first base URL" do
+        expect(subject.base_href).to be == URI(first_base)
+      end
+    end
+
+    context "when base href has spaces around it" do
+      let(:base_url) { "https://example.com/base/" }
+      let(:body) { %{<html><head><base href="  #{base_url}  " /></head><body><p>test</p></body></html>} }
+
+      it "should strip spaces and return the base URL" do
+        expect(subject.base_href).to be == URI(base_url)
+      end
+    end
+
+    context "when base href is a relative path" do
+      let(:path) { '/current/' }
+      let(:url)  { URI("http://#{host}#{path}") }
+      let(:relative_base) { "../other/" }
+      let(:body) { %{<html><head><base href="#{relative_base}" /></head><body><p>test</p></body></html>} }
+
+      it "should resolve relative to the page URL" do
+        expect(subject.base_href).to be == URI("http://#{host}/other/")
+      end
+    end
+
+    context "when base href has data: scheme" do
+      let(:body) { %{<html><head><base href="data:text/html,test" /></head><body><p>test</p></body></html>} }
+
+      it "should return nil (ignored per spec)" do
+        expect(subject.base_href).to be nil
+      end
+    end
+
+    context "when base href has javascript: scheme" do
+      let(:body) { %{<html><head><base href="javascript:alert(1)" /></head><body><p>test</p></body></html>} }
+
+      it "should return nil (ignored per spec)" do
+        expect(subject.base_href).to be nil
+      end
+    end
+
+    context "when base element has no href attribute" do
+      let(:body) { %{<html><head><base target="_blank" /></head><body><p>test</p></body></html>} }
+
+      it "should return nil" do
+        expect(subject.base_href).to be nil
+      end
+    end
+
+    context "when there is no base element" do
+      let(:body) { %{<html><head></head><body><p>test</p></body></html>} }
+
+      it "should return nil" do
+        expect(subject.base_href).to be nil
+      end
+    end
+
+    context "when base href is invalid URL" do
+      let(:body) { %{<html><head><base href="ht!tp://[invalid" /></head><body><p>test</p></body></html>} }
+
+      it "should return nil" do
+        expect(subject.base_href).to be nil
+      end
+    end
+  end
+
   describe "#to_absolute" do
     context "when given an relative path" do
       let(:path) { '/foo/' }
@@ -669,6 +750,63 @@ describe Page do
 
         it "should expand the relative path before merging it" do
           expect(subject).to be == URI("http://#{host}#{expanded_path}")
+        end
+      end
+
+      context "when base href is present" do
+        let(:base_url) { "https://example.com/base/" }
+        let(:body) { %{<html><head><base href="#{base_url}" /></head><body><p>test</p></body></html>} }
+        let(:page) { described_class.new(url,response) }
+        let(:relative_path) { "page.html" }
+
+        it "should use base href instead of page URL" do
+          expect(page.to_absolute(relative_path)).to be == URI("https://example.com/base/page.html")
+        end
+
+        context "with relative path containing directory traversal" do
+          let(:relative_path) { "../other/page.html" }
+
+          it "should resolve relative to base href" do
+            expect(page.to_absolute(relative_path)).to be == URI("https://example.com/other/page.html")
+          end
+        end
+
+        context "when given an absolute path" do
+          let(:absolute_path) { "/absolute/path.html" }
+
+          it "should resolve relative to base href host" do
+            expect(page.to_absolute(absolute_path)).to be == URI("https://example.com/absolute/path.html")
+          end
+        end
+
+        context "when given a full URL" do
+          let(:full_url) { "http://other.com/page.html" }
+
+          it "should return the full URL unchanged" do
+            expect(page.to_absolute(full_url)).to be == URI(full_url)
+          end
+        end
+      end
+
+      context "when base href is relative" do
+        let(:path) { '/current/page.html' }
+        let(:url)  { URI("http://#{host}#{path}") }
+        let(:body) { %{<html><head><base href="../base/" /></head><body><p>test</p></body></html>} }
+        let(:page) { described_class.new(url,response) }
+        let(:relative_path) { "file.html" }
+
+        it "should first resolve base href relative to page URL, then use it" do
+          expect(page.to_absolute(relative_path)).to be == URI("http://#{host}/base/file.html")
+        end
+      end
+
+      context "when base href is invalid" do
+        let(:body) { %{<html><head><base href="javascript:alert(1)" /></head><body><p>test</p></body></html>} }
+        let(:page) { described_class.new(url,response) }
+        let(:relative_path) { "page.html" }
+
+        it "should fall back to page URL" do
+          expect(page.to_absolute(relative_path)).to be == URI("http://#{host}/foo/page.html")
         end
       end
     end
