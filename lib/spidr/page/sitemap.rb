@@ -104,9 +104,13 @@ module Spidr
     #   If no block is given, an enumerator object will be returned.
     def each_sitemap_index_url
       return enum_for(__method__) unless block_given?
+      visited = Set.new
 
       each_sitemap_index_link do |link|
+        next if visited.include?(link)
+
         if (url = to_absolute(link))
+          visited.add(link)
           yield url
         end
       end
